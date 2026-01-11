@@ -15,7 +15,7 @@ async function getAccessToken() {
   }
 
   try {
-    const response = await fetch('https://opensky-network.org/api/auth/token', {
+    const response = await fetch('https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',

@@ -631,6 +631,40 @@ Aggregates **45+ RSS feeds** from major news outlets, government sources, and sp
 - **FRED**: Federal Reserve economic data
 - **Polymarket**: Prediction market odds
 
+## Data Attribution
+
+This project uses data from the following sources. Please respect their terms of use.
+
+### Aircraft Tracking
+Data provided by [The OpenSky Network](https://opensky-network.org). If you use this data in publications, please cite:
+
+> Matthias Schäfer, Martin Strohmeier, Vincent Lenders, Ivan Martinovic and Matthias Wilhelm. "Bringing Up OpenSky: A Large-scale ADS-B Sensor Network for Research". In *Proceedings of the 13th IEEE/ACM International Symposium on Information Processing in Sensor Networks (IPSN)*, pages 83-94, April 2014.
+
+### Conflict & Protest Data
+- **ACLED**: Armed Conflict Location & Event Data. Source: [ACLED](https://acleddata.com). Data must be attributed per their [Attribution Policy](https://acleddata.com/attributionpolicy/).
+- **GDELT**: Global Database of Events, Language, and Tone. Source: [The GDELT Project](https://www.gdeltproject.org/).
+
+### Financial Data
+- **Market Data**: Powered by [Yahoo Finance](https://finance.yahoo.com/)
+- **Cryptocurrency**: Powered by [CoinGecko API](https://www.coingecko.com/en/api)
+- **Economic Indicators**: Data from [FRED](https://fred.stlouisfed.org/), Federal Reserve Bank of St. Louis
+
+### Geophysical Data
+- **Earthquakes**: [U.S. Geological Survey](https://earthquake.usgs.gov/), ANSS Comprehensive Catalog
+- **Weather Alerts**: [National Weather Service](https://www.weather.gov/) - Open data, free to use
+
+### Infrastructure & Transport
+- **Airport Delays**: [FAA Air Traffic Control System Command Center](https://www.fly.faa.gov/)
+- **Vessel Tracking**: [AISstream](https://aisstream.io/) real-time AIS data
+- **Internet Outages**: [Cloudflare Radar](https://radar.cloudflare.com/) (CC BY-NC 4.0)
+
+### Other Sources
+- **Prediction Markets**: [Polymarket](https://polymarket.com/)
+
+## Acknowledgments
+
+Original dashboard concept inspired by Reggie James ([@HipCityReg](https://x.com/HipCityReg/status/2009003048044220622)) - with thanks for the vision of a comprehensive situation awareness tool
+
 ---
 
 ## Design Philosophy
