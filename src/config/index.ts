@@ -17,7 +17,7 @@ export {
 export { SECTORS, COMMODITIES, MARKET_SYMBOLS, CRYPTO_MAP } from './markets';
 
 // Geo data (shared base)
-export { UNDERSEA_CABLES, COUNTRY_LABELS, MAP_URLS } from './geo';
+export { UNDERSEA_CABLES, MAP_URLS } from './geo';
 
 // AI Datacenters (shared)
 export { AI_DATA_CENTERS } from './ai-datacenters';

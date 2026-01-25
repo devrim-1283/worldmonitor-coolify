@@ -4967,25 +4967,6 @@ body.playback-mode .status-dot {
   line-height: 1.3;
 }
 
-/* Country Labels */
-.country-label {
-  position: absolute;
-  transform: translate(-50%, -50%) scale(var(--label-scale, 1));
-  transform-origin: center;
-  white-space: nowrap;
-  font-size: 9px;
-  color: rgba(255, 255, 255, 0.6);
-  text-shadow:
-    0 0 3px var(--bg),
-    0 0 6px var(--bg),
-    1px 1px 2px var(--bg);
-  letter-spacing: 1px;
-  font-weight: 500;
-  text-transform: uppercase;
-  pointer-events: none;
-  z-index: 5;
-}
-
 /* Search Modal (Cmd+K) */
 .search-overlay {
   position: fixed;

@@ -49,7 +49,6 @@ import {
   SPACEPORTS,
   APT_GROUPS,
   CRITICAL_MINERALS,
-  COUNTRY_LABELS,
 } from '@/config';
 import { MapPopup, type PopupType } from './MapPopup';
 import {
@@ -658,11 +657,6 @@ export class DeckGLMap {
       layers.push(this.createRepairShipsLayer());
     }
 
-    // Country labels layer
-    if (mapLayers.countries) {
-      layers.push(this.createCountryLabelsLayer());
-    }
-
     // Flight delays layer
     if (mapLayers.flights && this.flightDelays.length > 0) {
       layers.push(this.createFlightDelaysLayer());
@@ -1113,20 +1107,6 @@ export class DeckGLMap {
     });
   }
 
-  private createCountryLabelsLayer(): ScatterplotLayer {
-    // Country labels as small markers (text would require TextLayer)
-    return new ScatterplotLayer({
-      id: 'country-labels-layer',
-      data: COUNTRY_LABELS,
-      getPosition: (d) => [d.lon, d.lat],
-      getRadius: 3000,
-      getFillColor: [200, 200, 200, 100] as [number, number, number, number],
-      radiusMinPixels: 2,
-      radiusMaxPixels: 4,
-      pickable: true,
-    });
-  }
-
   // Note: Protests layer now rendered via HTML overlays in renderProtestClusters()
 
   private createMilitaryVesselsLayer(): ScatterplotLayer {
@@ -1400,10 +1380,6 @@ export class DeckGLMap {
       return { html: `<div class="deckgl-tooltip"><strong>${obj.name || 'Repair Ship'}</strong><br/>${obj.status || ''}</div>` };
     }
 
-    if (layerId === 'country-labels-layer') {
-      return { html: `<div class="deckgl-tooltip"><strong>${obj.name || ''}</strong></div>` };
-    }
-
     return null;
   }
 
@@ -1590,7 +1566,6 @@ export class DeckGLMap {
           { key: 'natural', label: 'Natural Events', icon: '&#127755;' },
           { key: 'waterways', label: 'Strategic Waterways', icon: '&#9875;' },
           { key: 'economic', label: 'Economic Centers', icon: '&#128176;' },
-          { key: 'countries', label: 'Country Labels', icon: '&#127758;' },
           { key: 'minerals', label: 'Critical Minerals', icon: '&#128142;' },
         ];
 

@@ -397,7 +397,6 @@ export interface MapLayers {
   sanctions: boolean;
   weather: boolean;
   economic: boolean;
-  countries: boolean;
   waterways: boolean;
   outages: boolean;
   datacenters: boolean;
