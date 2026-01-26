@@ -49,7 +49,7 @@ export class TechReadinessPanel extends Panel {
     }
 
     this.loading = true;
-    this.showLoading();
+    this.showFetchingState();
 
     try {
       this.rankings = await getTechReadinessRankings();
@@ -62,6 +62,41 @@ export class TechReadinessPanel extends Panel {
     } finally {
       this.loading = false;
     }
+  }
+
+  private showFetchingState(): void {
+    this.setContent(`
+      <div class="tech-fetch-progress">
+        <div class="tech-fetch-icon">
+          <div class="tech-globe-ring"></div>
+          <span class="tech-globe">🌐</span>
+        </div>
+        <div class="tech-fetch-title">Fetching World Bank Data</div>
+        <div class="tech-fetch-indicators">
+          <div class="tech-indicator-item" style="animation-delay: 0s">
+            <span class="tech-indicator-icon">🌐</span>
+            <span class="tech-indicator-name">Internet Users</span>
+            <span class="tech-indicator-status"></span>
+          </div>
+          <div class="tech-indicator-item" style="animation-delay: 0.2s">
+            <span class="tech-indicator-icon">📱</span>
+            <span class="tech-indicator-name">Mobile Subscriptions</span>
+            <span class="tech-indicator-status"></span>
+          </div>
+          <div class="tech-indicator-item" style="animation-delay: 0.4s">
+            <span class="tech-indicator-icon">📡</span>
+            <span class="tech-indicator-name">Broadband Access</span>
+            <span class="tech-indicator-status"></span>
+          </div>
+          <div class="tech-indicator-item" style="animation-delay: 0.6s">
+            <span class="tech-indicator-icon">🔬</span>
+            <span class="tech-indicator-name">R&D Expenditure</span>
+            <span class="tech-indicator-status"></span>
+          </div>
+        </div>
+        <div class="tech-fetch-note">Analyzing 200+ countries...</div>
+      </div>
+    `);
   }
 
   private getFlag(countryCode: string): string {
