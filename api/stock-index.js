@@ -32,6 +32,7 @@ const COUNTRY_INDEX = {
   RU: { symbol: 'IMOEX.ME', name: 'MOEX' },
   ZA: { symbol: '^J203.JO', name: 'JSE All Share' },
   SA: { symbol: '^TASI.SR', name: 'Tadawul' },
+  AE: { symbol: 'DFMGI.AE', name: 'DFM General' },
   IL: { symbol: '^TA125.TA', name: 'TA-125' },
   TR: { symbol: 'XU100.IS', name: 'BIST 100' },
   PL: { symbol: '^WIG20', name: 'WIG 20' },
@@ -50,7 +51,6 @@ const COUNTRY_INDEX = {
   EG: { symbol: '^EGX30.CA', name: 'EGX 30' },
   CL: { symbol: '^IPSA', name: 'IPSA' },
   PE: { symbol: '^SPBLPGPT', name: 'S&P Lima' },
-  QA: { symbol: '^QSI', name: 'QE Index' },
   KW: { symbol: '^BKP.KW', name: 'Boursa Kuwait' },
   AT: { symbol: '^ATX', name: 'ATX' },
   BE: { symbol: '^BFX', name: 'BEL 20' },
@@ -125,7 +125,8 @@ export default async function handler(request) {
 
   try {
     const encodedSymbol = encodeURIComponent(index.symbol);
-    const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodedSymbol}?range=5d&interval=1d`;
+    // Use 1mo range to handle markets with different trading weeks (e.g. Sun-Thu Middle East)
+    const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodedSymbol}?range=1mo&interval=1d`;
 
     const res = await fetch(yahooUrl, {
       headers: {
@@ -150,14 +151,16 @@ export default async function handler(request) {
       });
     }
 
-    const closes = result.indicators?.quote?.[0]?.close?.filter(v => v != null);
-    if (!closes || closes.length < 2) {
+    const allCloses = result.indicators?.quote?.[0]?.close?.filter(v => v != null);
+    if (!allCloses || allCloses.length < 2) {
       return new Response(JSON.stringify({ error: 'Insufficient data', available: false }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       });
     }
 
+    // Take last ~5 trading days worth of data
+    const closes = allCloses.slice(-6);
     const latest = closes[closes.length - 1];
     const oldest = closes[0];
     const weekChange = ((latest - oldest) / oldest) * 100;
