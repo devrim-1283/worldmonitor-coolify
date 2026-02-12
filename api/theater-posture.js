@@ -4,7 +4,7 @@
  * TTL: 5 minutes (matches OpenSky refresh rate)
  */
 
-import { Redis } from '@upstash/redis';
+import { Redis } from './_redis.js';
 
 export const config = {
   runtime: 'edge',
@@ -223,11 +223,9 @@ function isMilitaryCallsign(callsign) {
 let redis = null;
 function getRedis() {
   if (redis) return redis;
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (url && token) {
+  if (process.env.REDIS_URL) {
     try {
-      redis = new Redis({ url, token });
+      redis = new Redis();
     } catch (err) {
       console.warn('[TheaterPosture] Redis init failed:', err.message);
       return null;
@@ -429,7 +427,7 @@ function calculatePostures(flights) {
 
     // Determine posture level
     const postureLevel = total >= theater.thresholds.critical ? 'critical' :
-                        total >= theater.thresholds.elevated ? 'elevated' : 'normal';
+      total >= theater.thresholds.elevated ? 'elevated' : 'normal';
 
     // Check strike capability
     const strikeCapable =
@@ -453,8 +451,8 @@ function calculatePostures(flights) {
     const headline = postureLevel === 'critical'
       ? `Critical military buildup - ${theater.name}`
       : postureLevel === 'elevated'
-      ? `Elevated military activity - ${theater.name}`
-      : `Normal activity - ${theater.name}`;
+        ? `Elevated military activity - ${theater.name}`
+        : `Normal activity - ${theater.name}`;
 
     // Build byOperator map for aircraft
     const byOperator = {};

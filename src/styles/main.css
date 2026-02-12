@@ -6665,7 +6665,7 @@ a.prediction-link:hover {
     display: none !important;
   }
 
-  /* Show only X logo on mobile, hide @eliehabib text */
+  /* Show only icon on mobile, hide devrimsoft.com text */
   .credit-link .credit-text {
     display: none;
   }

@@ -4,7 +4,7 @@
  * Redis cached (1h TTL)
  */
 
-import { Redis } from '@upstash/redis';
+import { Redis } from './_redis.js';
 
 export const config = {
   runtime: 'edge',
@@ -66,11 +66,9 @@ let redisInitFailed = false;
 function getRedis() {
   if (redis) return redis;
   if (redisInitFailed) return null;
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (url && token) {
+  if (process.env.REDIS_URL) {
     try {
-      redis = new Redis({ url, token });
+      redis = new Redis();
     } catch (err) {
       console.warn('[StockIndex] Redis init failed:', err.message);
       redisInitFailed = true;

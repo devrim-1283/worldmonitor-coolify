@@ -1,0 +1,14 @@
+node_modules
+.git
+.env
+.env.local
+.env.*.local
+dist
+*.md
+*.png
+*.jpg
+.gitignore
+.vscode
+.idea
+scripts/
+docs/

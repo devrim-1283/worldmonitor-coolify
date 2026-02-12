@@ -5,7 +5,7 @@
  * Server-side Redis cache for cross-user deduplication
  */
 
-import { Redis } from '@upstash/redis';
+import { Redis } from './_redis.js';
 
 export const config = {
   runtime: 'edge',
@@ -15,18 +15,16 @@ const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const MODEL = 'llama-3.1-8b-instant'; // 14.4K RPD vs 1K for 70b
 const CACHE_TTL_SECONDS = 86400; // 24 hours
 
-// Initialize Redis (lazy - only if env vars present)
+// Initialize Redis (lazy - only if REDIS_URL present)
 let redis = null;
 let redisInitFailed = false;
 function getRedis() {
   if (redis) return redis;
   if (redisInitFailed) return null;
 
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (url && token) {
+  if (process.env.REDIS_URL) {
     try {
-      redis = new Redis({ url, token });
+      redis = new Redis();
     } catch (err) {
       console.warn('[Groq] Redis init failed:', err.message);
       redisInitFailed = true;

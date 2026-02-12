@@ -1,0 +1,44 @@
+services:
+  worldmonitor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # Expose port 3000 to Coolify's internal network (Traefik)
+    expose:
+      - "3000"
+    environment:
+      - PORT=3000
+      # ── Redis ──
+      - REDIS_URL=redis://default:hfnR7GgGmZe95bjSNRss1FOOnaAXqB3Yw2yuB0puoih2KClqNNaYCBekH59i4mrN@u8ockwc4c0co88s04s4gkcc0:6379/0
+      # ── AI ──
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      # ── Market Data ──
+      - FINNHUB_API_KEY=${FINNHUB_API_KEY}
+      # ── Energy ──
+      - EIA_API_KEY=${EIA_API_KEY}
+      # ── Economic ──
+      - FRED_API_KEY=${FRED_API_KEY}
+      # ── Aircraft ──
+      - WINGBITS_API_KEY=${WINGBITS_API_KEY}
+      # ── Conflict & Protest ──
+      - ACLED_ACCESS_TOKEN=${ACLED_ACCESS_TOKEN}
+      # ── Internet Outages ──
+      - CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN}
+      # ── Satellite Fire ──
+      - NASA_FIRMS_API_KEY=${NASA_FIRMS_API_KEY}
+      # ── AIS Vessel Tracking ──
+      - AISSTREAM_API_KEY=${AISSTREAM_API_KEY}
+      # ── OpenSky ──
+      - OPENSKY_CLIENT_ID=${OPENSKY_CLIENT_ID}
+      - OPENSKY_CLIENT_SECRET=${OPENSKY_CLIENT_SECRET}
+      # ── Site Config ──
+      - VITE_VARIANT=${VITE_VARIANT:-full}
+    restart: unless-stopped
+    healthcheck:
+      # Use root path / instead of API. It returns index.html (200 OK)
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/" ]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s

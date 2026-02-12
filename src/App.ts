@@ -284,7 +284,7 @@ export class App {
 
   private handleDeepLinks(): void {
     const url = new URL(window.location.href);
-    
+
     // Check for story deep link: /story?c=UA&t=ciianalysis
     if (url.pathname === '/story' || url.searchParams.has('c')) {
       const countryCode = url.searchParams.get('c');
@@ -297,7 +297,7 @@ export class App {
           SY: 'Syria', YE: 'Yemen', MM: 'Myanmar', VE: 'Venezuela',
         };
         const countryName = countryNames[countryCode.toUpperCase()] || countryCode;
-        
+
         // Wait for data to load, then open story
         const checkAndOpen = () => {
           if (dataFreshness.hasSufficientData() && this.latestClusters.length > 0) {
@@ -307,7 +307,7 @@ export class App {
           }
         };
         setTimeout(checkAndOpen, 2000);
-        
+
         // Update URL without reload
         history.replaceState(null, '', '/');
       }
@@ -662,13 +662,13 @@ export class App {
   private setupSearchModal(): void {
     const searchOptions = SITE_VARIANT === 'tech'
       ? {
-          placeholder: 'Search companies, AI labs, startups, events...',
-          hint: 'HQs • Companies • AI Labs • Startups • Accelerators • Events',
-        }
+        placeholder: 'Search companies, AI labs, startups, events...',
+        hint: 'HQs • Companies • AI Labs • Startups • Accelerators • Events',
+      }
       : {
-          placeholder: 'Search news, pipelines, bases, markets...',
-          hint: 'News • Hotspots • Conflicts • Bases • Pipelines • Cables • Datacenters',
-        };
+        placeholder: 'Search news, pipelines, bases, markets...',
+        hint: 'News • Hotspots • Conflicts • Bases • Pipelines • Cables • Datacenters',
+      };
     this.searchModal = new SearchModal(this.container, searchOptions);
 
     if (SITE_VARIANT === 'tech') {
@@ -1095,9 +1095,9 @@ export class App {
             </a>
           </div>
           <span class="logo">MONITOR</span><span class="version">v${__APP_VERSION__}</span>
-          <a href="https://x.com/eliehabib" target="_blank" rel="noopener" class="credit-link">
-            <svg class="x-logo" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-            <span class="credit-text">@eliehabib</span>
+          <a href="https://devrimsoft.com" target="_blank" rel="noopener" class="credit-link">
+            <svg class="x-logo" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+            <span class="credit-text">devrimsoft.com</span>
           </a>
           <a href="https://github.com/koala73/worldmonitor" target="_blank" rel="noopener" class="github-link" title="View on GitHub">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
@@ -2450,7 +2450,7 @@ export class App {
       { type: 'news', region: 'global', count: collectedNews.length },
     ]).then(anomalies => {
       if (anomalies.length > 0) signalAggregator.ingestTemporalAnomalies(anomalies);
-    }).catch(() => {});
+    }).catch(() => { });
 
     // Update map hotspots
     this.map?.updateHotspotActivity(this.allNews);
@@ -2803,7 +2803,7 @@ export class App {
           { type: 'vessels', region: 'global', count: vesselData.vessels.length },
         ]).then(anomalies => {
           if (anomalies.length > 0) signalAggregator.ingestTemporalAnomalies(anomalies);
-        }).catch(() => {});
+        }).catch(() => { });
         // Update map only if layer is visible
         if (this.mapLayers.military) {
           this.map?.setMilitaryFlights(flightData.flights, flightData.clusters);
@@ -2880,7 +2880,7 @@ export class App {
         { type: 'ais_gaps', region: 'global', count: disruptions.length },
       ]).then(anomalies => {
         if (anomalies.length > 0) signalAggregator.ingestTemporalAnomalies(anomalies);
-      }).catch(() => {});
+      }).catch(() => { });
 
       const hasData = disruptions.length > 0 || density.length > 0;
       this.map?.setLayerReady('ais', hasData);
@@ -3065,7 +3065,7 @@ export class App {
         { type: 'vessels', region: 'global', count: vesselData.vessels.length },
       ]).then(anomalies => {
         if (anomalies.length > 0) signalAggregator.ingestTemporalAnomalies(anomalies);
-      }).catch(() => {});
+      }).catch(() => { });
       this.map?.updateMilitaryForEscalation(flightData.flights, vesselData.vessels);
       (this.panels['cii'] as CIIPanel)?.refresh();
       if (!isInLearningMode()) {
@@ -3260,7 +3260,7 @@ export class App {
           if (anomalies.length > 0) {
             signalAggregator.ingestTemporalAnomalies(anomalies);
           }
-        }).catch(() => {});
+        }).catch(() => { });
       }
       this.statusPanel?.updateApi('FIRMS', { status: 'ok' });
     } catch (e) {

@@ -7,7 +7,7 @@
  * POST { updates: [{ type, region, count }] } — batch update baselines
  */
 
-import { Redis } from '@upstash/redis';
+import { Redis } from './_redis.js';
 
 export const config = {
   runtime: 'edge',
@@ -21,18 +21,16 @@ const Z_THRESHOLD_HIGH = 3.0;
 
 const VALID_TYPES = ['military_flights', 'vessels', 'protests', 'news', 'ais_gaps', 'satellite_fires'];
 
-// Lazy Redis init (same pattern as groq-summarize.js)
+// Lazy Redis init
 let redis = null;
 let redisInitFailed = false;
 function getRedis() {
   if (redis) return redis;
   if (redisInitFailed) return null;
 
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (url && token) {
+  if (process.env.REDIS_URL) {
     try {
-      redis = new Redis({ url, token });
+      redis = new Redis();
     } catch (err) {
       console.warn('[TemporalBaseline] Redis init failed:', err.message);
       redisInitFailed = true;

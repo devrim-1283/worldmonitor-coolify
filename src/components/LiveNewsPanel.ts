@@ -55,6 +55,8 @@ const FULL_LIVE_CHANNELS: LiveChannel[] = [
   { id: 'france24', name: 'France24', handle: '@FRANCE24English', fallbackVideoId: 'Ap-UM1O9RBU' },
   { id: 'alarabiya', name: 'AlArabiya', handle: '@AlArabiya', fallbackVideoId: 'n7eQejkXbnM', useFallbackOnly: true },
   { id: 'aljazeera', name: 'AlJazeera', handle: '@AlJazeeraEnglish', fallbackVideoId: 'gCNeDWCI0vo', useFallbackOnly: true },
+  { id: 'trthaber', name: 'TRT Haber', handle: '@trthaber', fallbackVideoId: 'EvlMtGiuNE4', useFallbackOnly: true },
+  { id: 'cnnturk', name: 'CNN Türk', handle: '@cabornnturk', fallbackVideoId: 'M_Xm8Mp3u8s', useFallbackOnly: true },
 ];
 
 // Tech variant: Tech & business channels

@@ -4,7 +4,7 @@
  * Uses Upstash Redis for cross-user caching (10-minute TTL)
  */
 
-import { Redis } from '@upstash/redis';
+import { Redis } from './_redis.js';
 
 export const config = {
   runtime: 'edge',
@@ -65,10 +65,8 @@ const COUNTRY_KEYWORDS = {
 let redis = null;
 function getRedis() {
   if (redis) return redis;
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (url && token) {
-    redis = new Redis({ url, token });
+  if (process.env.REDIS_URL) {
+    redis = new Redis();
   }
   return redis;
 }

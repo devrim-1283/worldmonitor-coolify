@@ -1,4 +1,4 @@
-import { Redis } from '@upstash/redis';
+import { Redis } from './_redis.js';
 
 let redis = null;
 let redisInitFailed = false;
@@ -7,14 +7,13 @@ export function getRedis() {
   if (redis) return redis;
   if (redisInitFailed) return null;
 
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (!url || !token) {
+  const redisUrl = process.env.REDIS_URL;
+  if (!redisUrl) {
     return null;
   }
 
   try {
-    redis = new Redis({ url, token });
+    redis = new Redis();
   } catch (error) {
     redisInitFailed = true;
     console.warn('[Cache] Redis init failed:', error.message);

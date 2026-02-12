@@ -6,7 +6,7 @@
  * Server-side Redis cache for cross-user deduplication
  */
 
-import { Redis } from '@upstash/redis';
+import { Redis } from './_redis.js';
 
 export const config = {
   runtime: 'edge',
@@ -16,14 +16,12 @@ const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const MODEL = 'meta-llama/llama-3.3-70b-instruct:free';
 const CACHE_TTL_SECONDS = 86400; // 24 hours
 
-// Initialize Redis (lazy - only if env vars present)
+// Initialize Redis (lazy - only if REDIS_URL present)
 let redis = null;
 function getRedis() {
   if (redis) return redis;
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (url && token) {
-    redis = new Redis({ url, token });
+  if (process.env.REDIS_URL) {
+    redis = new Redis();
   }
   return redis;
 }
