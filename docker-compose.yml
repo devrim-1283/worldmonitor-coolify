@@ -9,7 +9,7 @@ services:
     environment:
       - PORT=3000
       # ── Redis ──
-      - REDIS_URL=redis://default:hfnR7GgGmZe95bjSNRss1FOOnaAXqB3Yw2yuB0puoih2KClqNNaYCBekH59i4mrN@u8ockwc4c0co88s04s4gkcc0:6379/0
+      - REDIS_URL=${REDIS_URL}
       # ── AI ──
       - GROQ_API_KEY=${GROQ_API_KEY}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
