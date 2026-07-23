@@ -1,0 +1,102 @@
+# =============================================================================
+# World Monitor — Coolify deployment (external Redis)
+# =============================================================================
+# Differences vs docker-compose.yml:
+#   - The bundled `redis` service is REMOVED. The SRH REST proxy points at an
+#     existing Redis instance (e.g. a Coolify-managed standalone Redis reachable
+#     on the `coolify` network of the same server).
+#   - No host port bindings — Coolify's proxy (Traefik) routes the domain to
+#     the `worldmonitor` service on port 8080.
+#   - RELAY_SHARED_SECRET is wired to both the app and the relay (the relay
+#     refuses to start without it).
+#
+# Required environment variables (set them in the Coolify UI, not here):
+#   WM_REDIS_URL          redis://default:<password>@<redis-host>:6379/0
+#   REDIS_TOKEN           bearer for the internal REST proxy — openssl rand -hex 32
+#   RELAY_SHARED_SECRET   app→relay auth — openssl rand -hex 32
+#
+# Optional data-source keys: GROQ_API_KEY, OPENROUTER_API_KEY, FINNHUB_API_KEY,
+# FRED_API_KEY, EIA_API_KEY, ACLED_EMAIL/ACLED_PASSWORD, NASA_FIRMS_API_KEY,
+# AISSTREAM_API_KEY, AVIATIONSTACK_API, CLOUDFLARE_API_TOKEN, ...
+#
+# NOTE: enable "Connect To Predefined Network" on the Coolify resource so the
+# stack joins the `coolify` network and can resolve the Redis container name.
+# Deploy on the SAME server that hosts the target Redis.
+# =============================================================================
+
+services:
+
+  worldmonitor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      UPSTASH_REDIS_REST_URL: "http://redis-rest:80"
+      UPSTASH_REDIS_REST_TOKEN: "${REDIS_TOKEN:?REDIS_TOKEN required — generate with: openssl rand -hex 32}"
+      LOCAL_API_PORT: "46123"
+      LOCAL_API_MODE: "docker"
+      LOCAL_API_CLOUD_FALLBACK: "false"
+      WS_RELAY_URL: "http://ais-relay:3004"
+      RELAY_SHARED_SECRET: "${RELAY_SHARED_SECRET:?RELAY_SHARED_SECRET required — generate with: openssl rand -hex 32}"
+      # LLM provider (any OpenAI-compatible endpoint)
+      LLM_API_URL: "${LLM_API_URL:-}"
+      LLM_API_KEY: "${LLM_API_KEY:-}"
+      LLM_MODEL: "${LLM_MODEL:-}"
+      GROQ_API_KEY: "${GROQ_API_KEY:-}"
+      OPENROUTER_API_KEY: "${OPENROUTER_API_KEY:-}"
+      # Data source API keys (optional — features degrade gracefully)
+      AISSTREAM_API_KEY: "${AISSTREAM_API_KEY:-}"
+      FINNHUB_API_KEY: "${FINNHUB_API_KEY:-}"
+      EIA_API_KEY: "${EIA_API_KEY:-}"
+      FRED_API_KEY: "${FRED_API_KEY:-}"
+      ACLED_EMAIL: "${ACLED_EMAIL:-}"
+      ACLED_PASSWORD: "${ACLED_PASSWORD:-}"
+      ACLED_ACCESS_TOKEN: "${ACLED_ACCESS_TOKEN:-}"
+      NASA_FIRMS_API_KEY: "${NASA_FIRMS_API_KEY:-}"
+      CLOUDFLARE_API_TOKEN: "${CLOUDFLARE_API_TOKEN:-}"
+      AVIATIONSTACK_API: "${AVIATIONSTACK_API:-}"
+      TRAVELPAYOUTS_API_TOKEN: "${TRAVELPAYOUTS_API_TOKEN:-}"
+    expose:
+      - "8080"
+    depends_on:
+      redis-rest:
+        condition: service_started
+      ais-relay:
+        condition: service_started
+    restart: unless-stopped
+
+  ais-relay:
+    build:
+      context: .
+      dockerfile: Dockerfile.relay
+    environment:
+      RELAY_SHARED_SECRET: "${RELAY_SHARED_SECRET:?RELAY_SHARED_SECRET required — generate with: openssl rand -hex 32}"
+      AISSTREAM_API_KEY: "${AISSTREAM_API_KEY:-}"
+      FINNHUB_API_KEY: "${FINNHUB_API_KEY:-}"
+      MARKET_YAHOO_REFRESH_INTERVAL_MS: "${MARKET_YAHOO_REFRESH_INTERVAL_MS:-900000}"
+      UPSTASH_REDIS_REST_URL: "http://redis-rest:80"
+      UPSTASH_REDIS_REST_TOKEN: "${REDIS_TOKEN:?REDIS_TOKEN required — generate with: openssl rand -hex 32}"
+      UPSTASH_ALLOW_INSECURE_HTTP: "true"
+      UCDP_ACCESS_TOKEN: "${UCDP_ACCESS_TOKEN:-}"
+      GROQ_API_KEY: "${GROQ_API_KEY:-}"
+      OPENROUTER_API_KEY: "${OPENROUTER_API_KEY:-}"
+      PORT: "3004"
+    expose:
+      - "3004"
+    depends_on:
+      redis-rest:
+        condition: service_started
+    restart: unless-stopped
+
+  redis-rest:
+    build:
+      context: docker
+      dockerfile: Dockerfile.redis-rest
+    environment:
+      SRH_TOKEN: "${REDIS_TOKEN:?REDIS_TOKEN required — generate with: openssl rand -hex 32}"
+      # External Redis — e.g. a Coolify standalone Redis on the same server:
+      #   redis://default:<password>@<container-hostname>:6379/0
+      SRH_CONNECTION_STRING: "${WM_REDIS_URL:?WM_REDIS_URL required — redis://default:<password>@<host>:6379/0}"
+    expose:
+      - "80"
+    restart: unless-stopped
