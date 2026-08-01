@@ -6,49 +6,54 @@
 # `scripts/run-seeders.sh` (see SELF_HOSTING.md), which does not exist on a
 # Coolify host. This image runs the same script on a loop inside the stack.
 #
-# Unlike Dockerfile.relay — which cherry-picks the handful of modules
-# ais-relay.cjs needs — the 163 seeders reach into api/, server/ and shared/,
-# so this image carries the repo. .dockerignore keeps node_modules, dist/,
-# e2e/ and secrets out of the context.
+# No root `npm ci`. Walking the import graph of all 163 seeders (339 files,
+# reaching 4 modules under server/ and 2 under api/) turns up exactly seven
+# external packages — @aws-sdk/client-s3, exceljs, fast-xml-parser, papaparse,
+# resend, sax, yaml — and every one is already in scripts/package.json.
+# scripts/_seed-history.mjs states the same invariant: seeders may import
+# "scripts/, node:*, and bare packages in scripts/package.json". Installing the
+# root production graph on top of that added 2 GB of browser-only payload
+# (onnxruntime-web, @arcgis, maplibre-gl, three, react-native) that no seeder
+# can reach.
 # =============================================================================
 
 FROM node:24-alpine@sha256:a0b9bf06e4e6193cf7a0f58816cc935ff8c2a908f81e6f1a95432d679c54fbfd
 
 # curl — a few upstreams (OREF, Akamai-fronted feeds) reject Node's TLS
 # fingerprint and are fetched by shelling out to curl.
-# coreutils — run-seeders.sh wraps each standalone seeder in `timeout -k`;
-# BusyBox's applet is close but not identical on the exit-code contract
-# (124/137) the script classifies on.
-RUN apk add --no-cache curl coreutils tini
+# coreutils — run-seeders.sh wraps each standalone seeder in `timeout -k` and
+# classifies on the 124/137 exit codes; BusyBox's applet differs there.
+# tini — reaps the seeder child processes the loop spawns.
+RUN apk add --no-cache curl coreutils tini && \
+    addgroup -S seeder && adduser -S seeder -G seeder
 
 WORKDIR /app
+RUN chown seeder:seeder /app
 
-# Root production dependencies. Seeders import shared modules under server/ and
-# api/, which resolve their package imports (@upstash/redis, zod, ...) from the
-# root node_modules. --ignore-scripts also skips the `postinstall` that would
-# otherwise try to build blog-site, which has no place in a seeder image.
-COPY package.json package-lock.json ./
-RUN npm ci --omit=dev --omit=optional --ignore-scripts
+# Install and copy as the runtime user. A trailing `chown -R /app` would be the
+# obvious alternative, but it rewrites every inode and Docker stores the result
+# as a second full copy of node_modules — 1.8 GB of duplicate layer.
+USER seeder
 
-# scripts/ dependencies (exceljs, papaparse, sax, fast-xml-parser, tsx, ...)
-COPY scripts/package.json scripts/package-lock.json ./scripts/
+COPY --chown=seeder:seeder scripts/package.json scripts/package-lock.json ./scripts/
+# --ignore-scripts keeps node-gyp-build out of the picture: ws/telegram's
+# native helpers (bufferutil, utf-8-validate) fall back to pure JS, so Alpine
+# needs no Python/build toolchain. Mirrors Dockerfile.relay.
 RUN npm ci --prefix scripts --omit=dev --omit=optional --ignore-scripts
 
-# Source the seeders actually reach for. Everything else stays out.
-COPY scripts/ ./scripts/
-COPY shared/ ./shared/
-COPY server/ ./server/
-COPY api/ ./api/
-COPY data/ ./data/
-COPY tsconfig.json ./
+# Source. scripts/ lands on top of the install above; .dockerignore's
+# **/node_modules is what keeps a developer's host-built scripts/node_modules
+# from overwriting the Linux tree installed here.
+COPY --chown=seeder:seeder scripts/ ./scripts/
+COPY --chown=seeder:seeder shared/ ./shared/
+COPY --chown=seeder:seeder server/ ./server/
+COPY --chown=seeder:seeder api/ ./api/
+COPY --chown=seeder:seeder data/ ./data/
+COPY --chown=seeder:seeder tsconfig.json ./
 
-COPY docker/seeder-loop.sh /app/seeder-loop.sh
-COPY docker/seeder-healthcheck.sh /app/seeder-healthcheck.sh
-RUN chmod +x /app/seeder-loop.sh /app/seeder-healthcheck.sh scripts/run-seeders.sh && \
-    addgroup -S seeder && adduser -S seeder -G seeder && \
-    chown -R seeder:seeder /app
-
-USER seeder
+COPY --chown=seeder:seeder docker/seeder-loop.sh docker/seeder-healthcheck.sh ./
+# A Windows checkout can drop the exec bit even with .gitattributes pinning EOL.
+RUN chmod +x seeder-loop.sh seeder-healthcheck.sh scripts/run-seeders.sh
 
 # Node 24 strips TypeScript natively, so the seeders that import server/*.ts
 # run under plain `node` without a loader flag.
