@@ -1,0 +1,15 @@
+# Shell scripts and Dockerfiles are executed inside Linux containers. With a
+# Windows checkout under core.autocrlf=true they land in the build context with
+# CRLF, and the container dies on `/bin/sh^M: bad interpreter` — a failure that
+# never reproduces on a Linux clone, so it reads as a broken image rather than
+# a line-ending problem. Pin them to LF regardless of platform.
+*.sh            text eol=lf
+Dockerfile      text eol=lf
+Dockerfile.*    text eol=lf
+*.yml           text eol=lf
+*.yaml          text eol=lf
+docker/nginx.conf        text eol=lf
+docker/nginx.conf.template text eol=lf
+docker/supervisord.conf  text eol=lf
+.env.example    text eol=lf
+.env.*.example  text eol=lf

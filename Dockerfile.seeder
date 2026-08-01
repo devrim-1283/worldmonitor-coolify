@@ -1,0 +1,64 @@
+# =============================================================================
+# World Monitor — Seeder Runner
+# =============================================================================
+# The dashboard reads everything from Redis; `scripts/seed-*.mjs` are what put
+# it there. Upstream leaves that to a host-side cron calling
+# `scripts/run-seeders.sh` (see SELF_HOSTING.md), which does not exist on a
+# Coolify host. This image runs the same script on a loop inside the stack.
+#
+# Unlike Dockerfile.relay — which cherry-picks the handful of modules
+# ais-relay.cjs needs — the 163 seeders reach into api/, server/ and shared/,
+# so this image carries the repo. .dockerignore keeps node_modules, dist/,
+# e2e/ and secrets out of the context.
+# =============================================================================
+
+FROM node:24-alpine@sha256:a0b9bf06e4e6193cf7a0f58816cc935ff8c2a908f81e6f1a95432d679c54fbfd
+
+# curl — a few upstreams (OREF, Akamai-fronted feeds) reject Node's TLS
+# fingerprint and are fetched by shelling out to curl.
+# coreutils — run-seeders.sh wraps each standalone seeder in `timeout -k`;
+# BusyBox's applet is close but not identical on the exit-code contract
+# (124/137) the script classifies on.
+RUN apk add --no-cache curl coreutils tini
+
+WORKDIR /app
+
+# Root production dependencies. Seeders import shared modules under server/ and
+# api/, which resolve their package imports (@upstash/redis, zod, ...) from the
+# root node_modules. --ignore-scripts also skips the `postinstall` that would
+# otherwise try to build blog-site, which has no place in a seeder image.
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev --omit=optional --ignore-scripts
+
+# scripts/ dependencies (exceljs, papaparse, sax, fast-xml-parser, tsx, ...)
+COPY scripts/package.json scripts/package-lock.json ./scripts/
+RUN npm ci --prefix scripts --omit=dev --omit=optional --ignore-scripts
+
+# Source the seeders actually reach for. Everything else stays out.
+COPY scripts/ ./scripts/
+COPY shared/ ./shared/
+COPY server/ ./server/
+COPY api/ ./api/
+COPY data/ ./data/
+COPY tsconfig.json ./
+
+COPY docker/seeder-loop.sh /app/seeder-loop.sh
+COPY docker/seeder-healthcheck.sh /app/seeder-healthcheck.sh
+RUN chmod +x /app/seeder-loop.sh /app/seeder-healthcheck.sh scripts/run-seeders.sh && \
+    addgroup -S seeder && adduser -S seeder -G seeder && \
+    chown -R seeder:seeder /app
+
+USER seeder
+
+# Node 24 strips TypeScript natively, so the seeders that import server/*.ts
+# run under plain `node` without a loader flag.
+ENV NODE_OPTIONS=--dns-result-order=ipv4first
+
+# Liveness: the loop touches a heartbeat file after every pass. A run that
+# wedges past two intervals stops refreshing it and the container is restarted.
+# start-period is generous — a cold first pass over 163 seeders is slow.
+HEALTHCHECK --interval=60s --timeout=15s --start-period=45m --retries=3 \
+  CMD /app/seeder-healthcheck.sh
+
+ENTRYPOINT ["/sbin/tini", "--"]
+CMD ["/app/seeder-loop.sh"]

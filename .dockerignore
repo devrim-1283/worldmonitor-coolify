@@ -1,4 +1,8 @@
-node_modules
+# `**/` so nested trees are excluded too. Dockerfile.seeder installs
+# scripts/ dependencies in an early layer and then copies scripts/ over it — a
+# host-side scripts/node_modules in the context would overwrite the image's
+# Linux build with whatever the developer's machine produced.
+**/node_modules
 dist
 .git
 .github

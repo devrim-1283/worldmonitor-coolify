@@ -23,6 +23,22 @@ COPY . .
 # Output is api/**/*.js alongside the source .ts files
 RUN node docker/build-handlers.mjs
 
+# Frontend configuration must arrive as BUILD ARGS, not runtime env: Vite
+# inlines every VITE_* value into the emitted bundle at build time, so setting
+# them on the running container (docker-compose `environment:`, Coolify's env
+# tab) has no effect on the already-compiled assets. Coolify passes these
+# through when they are declared under `build.args` in the compose file.
+ARG VITE_VARIANT=full
+ARG VITE_MAP_INTERACTION_MODE=3d
+ARG VITE_SENTRY_DSN=
+ARG VITE_PMTILES_URL=
+ARG VITE_WS_API_URL=
+ENV VITE_VARIANT=$VITE_VARIANT \
+    VITE_MAP_INTERACTION_MODE=$VITE_MAP_INTERACTION_MODE \
+    VITE_SENTRY_DSN=$VITE_SENTRY_DSN \
+    VITE_PMTILES_URL=$VITE_PMTILES_URL \
+    VITE_WS_API_URL=$VITE_WS_API_URL
+
 # Build the crawlable static corpus and Vite frontend (outputs to dist/)
 # Skip blog build — blog-site has its own deps not installed here
 RUN npm run build:crawlable-corpus && npm run build:sitemap && npx tsc && npx vite build

@@ -1,0 +1,282 @@
+# =============================================================================
+# World Monitor — Coolify deployment (self-contained stack)
+# =============================================================================
+# Differences vs docker-compose.yml:
+#   - No host port bindings. Coolify's Traefik/Caddy proxy routes the domain to
+#     the `worldmonitor` service on port 8080; publishing ports on the host
+#     would expose Redis and the REST proxy to the internet.
+#   - `RELAY_SHARED_SECRET` is wired to BOTH the app and the relay. Upstream's
+#     compose omits it on `ais-relay`, and the relay calls process.exit(1) at
+#     boot when it is unset.
+#   - A `seeder` service replaces the host cron that SELF_HOSTING.md tells
+#     self-hosters to run. Without it Redis stays empty and every panel reports
+#     "0/55 OK" — there is no host crontab on a Coolify box.
+#   - Resource limits, log rotation, healthcheck-gated startup ordering, and
+#     `no-new-privileges` on every service.
+#   - VITE_* values are passed as build args. Vite inlines them into the bundle
+#     at build time; setting them as runtime env does nothing.
+#
+# Required secrets — set these in the Coolify UI, never in this file:
+#   REDIS_PASSWORD        Redis AUTH password        openssl rand -hex 32
+#   REDIS_TOKEN           REST proxy bearer token    openssl rand -hex 32
+#   RELAY_SHARED_SECRET   app → relay auth           openssl rand -hex 32
+#
+# Everything else is optional; the dashboard degrades feature-by-feature.
+# See .env.coolify.example for the full list and COOLIFY.md for the runbook.
+# =============================================================================
+
+services:
+
+  # ── Dashboard: nginx (static) + Node API sidecar under supervisord ─────────
+  worldmonitor:
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Build-time only. Changing any of these requires a rebuild, not a
+        # restart — Coolify's "Redeploy" does the right thing.
+        VITE_VARIANT: "${VITE_VARIANT:-full}"
+        VITE_MAP_INTERACTION_MODE: "${VITE_MAP_INTERACTION_MODE:-3d}"
+        VITE_SENTRY_DSN: "${VITE_SENTRY_DSN:-}"
+        VITE_PMTILES_URL: "${VITE_PMTILES_URL:-}"
+        VITE_WS_API_URL: "${VITE_WS_API_URL:-}"
+    environment:
+      # Coolify auto-assigns a domain when this is set. Leave it out and set
+      # the domain on the resource in the Coolify UI instead — do not do both.
+      # SERVICE_FQDN_WORLDMONITOR_8080: ""
+      UPSTASH_REDIS_REST_URL: "http://redis-rest:80"
+      UPSTASH_REDIS_REST_TOKEN: "${REDIS_TOKEN:?REDIS_TOKEN required — generate with: openssl rand -hex 32}"
+      LOCAL_API_PORT: "46123"
+      LOCAL_API_MODE: "docker"
+      LOCAL_API_CLOUD_FALLBACK: "false"
+      WS_RELAY_URL: "http://ais-relay:3004"
+      RELAY_SHARED_SECRET: "${RELAY_SHARED_SECRET:?RELAY_SHARED_SECRET required — generate with: openssl rand -hex 32}"
+      # LLM provider — any OpenAI-compatible endpoint
+      LLM_API_URL: "${LLM_API_URL:-}"
+      LLM_API_KEY: "${LLM_API_KEY:-}"
+      LLM_MODEL: "${LLM_MODEL:-}"
+      GROQ_API_KEY: "${GROQ_API_KEY:-}"
+      OPENROUTER_API_KEY: "${OPENROUTER_API_KEY:-}"
+      # Data sources — every one is optional; the matching panel degrades
+      AISSTREAM_API_KEY: "${AISSTREAM_API_KEY:-}"
+      FINNHUB_API_KEY: "${FINNHUB_API_KEY:-}"
+      EIA_API_KEY: "${EIA_API_KEY:-}"
+      FRED_API_KEY: "${FRED_API_KEY:-}"
+      ACLED_EMAIL: "${ACLED_EMAIL:-}"
+      ACLED_PASSWORD: "${ACLED_PASSWORD:-}"
+      ACLED_ACCESS_TOKEN: "${ACLED_ACCESS_TOKEN:-}"
+      UCDP_ACCESS_TOKEN: "${UCDP_ACCESS_TOKEN:-}"
+      NASA_FIRMS_API_KEY: "${NASA_FIRMS_API_KEY:-}"
+      CLOUDFLARE_API_TOKEN: "${CLOUDFLARE_API_TOKEN:-}"
+      AVIATIONSTACK_API: "${AVIATIONSTACK_API:-}"
+      TRAVELPAYOUTS_API_TOKEN: "${TRAVELPAYOUTS_API_TOKEN:-}"
+      OPENSKY_CLIENT_ID: "${OPENSKY_CLIENT_ID:-}"
+      OPENSKY_CLIENT_SECRET: "${OPENSKY_CLIENT_SECRET:-}"
+      WINGBITS_API_KEY: "${WINGBITS_API_KEY:-}"
+    expose:
+      - "8080"
+    depends_on:
+      redis-rest:
+        condition: service_healthy
+      ais-relay:
+        condition: service_started
+    deploy:
+      resources:
+        limits:
+          cpus: "${WM_APP_CPUS:-2.0}"
+          memory: "${WM_APP_MEMORY:-1g}"
+
+  # ── AIS/OSINT relay: WebSocket ingest + in-container seed loops ────────────
+  ais-relay:
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    build:
+      context: .
+      dockerfile: Dockerfile.relay
+    environment:
+      # The relay exits(1) at boot without this. It authenticates every
+      # non-public route the dashboard calls.
+      RELAY_SHARED_SECRET: "${RELAY_SHARED_SECRET:?RELAY_SHARED_SECRET required — generate with: openssl rand -hex 32}"
+      UPSTASH_REDIS_REST_URL: "http://redis-rest:80"
+      UPSTASH_REDIS_REST_TOKEN: "${REDIS_TOKEN:?REDIS_TOKEN required — generate with: openssl rand -hex 32}"
+      # The bundled REST proxy speaks plain HTTP on the internal network. The
+      # relay refuses non-https Upstash URLs unless this opt-in is set.
+      UPSTASH_ALLOW_INSECURE_HTTP: "true"
+      AISSTREAM_API_KEY: "${AISSTREAM_API_KEY:-}"
+      FINNHUB_API_KEY: "${FINNHUB_API_KEY:-}"
+      MARKET_YAHOO_REFRESH_INTERVAL_MS: "${MARKET_YAHOO_REFRESH_INTERVAL_MS:-900000}"
+      UCDP_ACCESS_TOKEN: "${UCDP_ACCESS_TOKEN:-}"
+      GROQ_API_KEY: "${GROQ_API_KEY:-}"
+      OPENROUTER_API_KEY: "${OPENROUTER_API_KEY:-}"
+      OPENSKY_CLIENT_ID: "${OPENSKY_CLIENT_ID:-}"
+      OPENSKY_CLIENT_SECRET: "${OPENSKY_CLIENT_SECRET:-}"
+      TELEGRAM_API_ID: "${TELEGRAM_API_ID:-}"
+      TELEGRAM_API_HASH: "${TELEGRAM_API_HASH:-}"
+      TELEGRAM_SESSION: "${TELEGRAM_SESSION:-}"
+      PORT: "3004"
+    expose:
+      - "3004"
+    depends_on:
+      redis-rest:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "${WM_RELAY_CPUS:-1.5}"
+          memory: "${WM_RELAY_MEMORY:-2g}"
+
+  # ── Seeders: what actually fills Redis ────────────────────────────────────
+  # Upstream expects a host cron running scripts/run-seeders.sh. Coolify gives
+  # you no host to put it on, so the loop runs here. Skip this service and the
+  # dashboard renders, but every panel is empty.
+  seeder:
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    build:
+      context: .
+      dockerfile: Dockerfile.seeder
+    environment:
+      UPSTASH_REDIS_REST_URL: "http://redis-rest:80"
+      UPSTASH_REDIS_REST_TOKEN: "${REDIS_TOKEN:?REDIS_TOKEN required — generate with: openssl rand -hex 32}"
+      SEED_INTERVAL_MINUTES: "${SEED_INTERVAL_MINUTES:-30}"
+      # Per-seeder wall-clock cap so one hung upstream can't starve the pass.
+      SEED_TIMEOUT: "${SEED_TIMEOUT:-1800}"
+      GROQ_API_KEY: "${GROQ_API_KEY:-}"
+      OPENROUTER_API_KEY: "${OPENROUTER_API_KEY:-}"
+      LLM_API_URL: "${LLM_API_URL:-}"
+      LLM_API_KEY: "${LLM_API_KEY:-}"
+      LLM_MODEL: "${LLM_MODEL:-}"
+      NASA_FIRMS_API_KEY: "${NASA_FIRMS_API_KEY:-}"
+      FINNHUB_API_KEY: "${FINNHUB_API_KEY:-}"
+      FRED_API_KEY: "${FRED_API_KEY:-}"
+      EIA_API_KEY: "${EIA_API_KEY:-}"
+      ACLED_EMAIL: "${ACLED_EMAIL:-}"
+      ACLED_PASSWORD: "${ACLED_PASSWORD:-}"
+      ACLED_ACCESS_TOKEN: "${ACLED_ACCESS_TOKEN:-}"
+      UCDP_ACCESS_TOKEN: "${UCDP_ACCESS_TOKEN:-}"
+      AISSTREAM_API_KEY: "${AISSTREAM_API_KEY:-}"
+      AVIATIONSTACK_API: "${AVIATIONSTACK_API:-}"
+      CLOUDFLARE_API_TOKEN: "${CLOUDFLARE_API_TOKEN:-}"
+      OPENAQ_API_KEY: "${OPENAQ_API_KEY:-}"
+      WAQI_API_KEY: "${WAQI_API_KEY:-}"
+      SAM_GOV_API_KEY: "${SAM_GOV_API_KEY:-}"
+      RELIEFWEB_APPNAME: "${RELIEFWEB_APPNAME:-worldmonitor-selfhost}"
+    depends_on:
+      redis-rest:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "${WM_SEEDER_CPUS:-2.0}"
+          memory: "${WM_SEEDER_MEMORY:-2g}"
+
+  # ── Upstash-compatible REST facade over Redis ─────────────────────────────
+  redis-rest:
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    build:
+      context: docker
+      dockerfile: Dockerfile.redis-rest
+    environment:
+      SRH_TOKEN: "${REDIS_TOKEN:?REDIS_TOKEN required — generate with: openssl rand -hex 32}"
+      SRH_CONNECTION_STRING: "redis://:${REDIS_PASSWORD:?REDIS_PASSWORD required — generate with: openssl rand -hex 32}@redis:6379"
+    expose:
+      - "80"
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      # PING is on the proxy's command allowlist, so an authenticated GET /ping
+      # proves the proxy AND its Redis connection are live — a bare TCP check
+      # would pass while Redis auth was failing.
+      test:
+        - CMD-SHELL
+        - >-
+          wget -q -O /dev/null
+          --header="Authorization: Bearer $$SRH_TOKEN"
+          http://127.0.0.1:80/ping || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: "${WM_REST_CPUS:-0.5}"
+          memory: "${WM_REST_MEMORY:-256m}"
+
+  # ── Redis ─────────────────────────────────────────────────────────────────
+  redis:
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    image: docker.io/redis:7-alpine
+    # --requirepass closes off the network so any future sidecar, or a
+    # compromised dependency in one of the app containers, can't read or write
+    # cache entries without the password. Defense-in-depth alongside the REST
+    # token. --appendonly survives a redeploy with the cache warm; without it
+    # every Coolify deploy starts from an empty dashboard until the seeder's
+    # next pass completes.
+    command: >
+      redis-server
+      --requirepass "${REDIS_PASSWORD:?REDIS_PASSWORD required — generate with: openssl rand -hex 32}"
+      --appendonly yes
+      --appendfsync everysec
+      --maxmemory ${REDIS_MAXMEMORY:-768mb}
+      --maxmemory-policy allkeys-lru
+    environment:
+      REDIS_PASSWORD: "${REDIS_PASSWORD:?REDIS_PASSWORD required — generate with: openssl rand -hex 32}"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      # --no-auth-warning keeps the password out of the container's stderr on
+      # every 10s probe.
+      test:
+        - CMD-SHELL
+        - redis-cli --no-auth-warning -a "$$REDIS_PASSWORD" ping | grep -q PONG
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: "${WM_REDIS_CPUS:-1.0}"
+          # Headroom over --maxmemory: Redis accounts data against maxmemory but
+          # client buffers, the AOF rewrite buffer and fragmentation live on top.
+          # Setting them equal gets the container OOM-killed during a rewrite.
+          memory: "${WM_REDIS_MEMORY:-1g}"
+
+volumes:
+  redis-data:
