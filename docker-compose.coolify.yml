@@ -70,9 +70,13 @@ services:
       FINNHUB_API_KEY: "${FINNHUB_API_KEY:-}"
       EIA_API_KEY: "${EIA_API_KEY:-}"
       FRED_API_KEY: "${FRED_API_KEY:-}"
+      # ACLED issues no static API key. server/_shared/acled-auth.ts exchanges
+      # these myACLED credentials for an OAuth token and refreshes it from
+      # Redis before expiry. The legacy ACLED_ACCESS_TOKEN fallback is
+      # deliberately not wired: it dies after 24h and would have to be pasted
+      # into Coolify by hand every day.
       ACLED_EMAIL: "${ACLED_EMAIL:-}"
       ACLED_PASSWORD: "${ACLED_PASSWORD:-}"
-      ACLED_ACCESS_TOKEN: "${ACLED_ACCESS_TOKEN:-}"
       UCDP_ACCESS_TOKEN: "${UCDP_ACCESS_TOKEN:-}"
       NASA_FIRMS_API_KEY: "${NASA_FIRMS_API_KEY:-}"
       CLOUDFLARE_API_TOKEN: "${CLOUDFLARE_API_TOKEN:-}"
@@ -170,9 +174,10 @@ services:
       FINNHUB_API_KEY: "${FINNHUB_API_KEY:-}"
       FRED_API_KEY: "${FRED_API_KEY:-}"
       EIA_API_KEY: "${EIA_API_KEY:-}"
+      # Same as above — scripts/shared/acled-oauth.mjs does the exchange on
+      # every seed pass, so the seeders never need a hand-refreshed token.
       ACLED_EMAIL: "${ACLED_EMAIL:-}"
       ACLED_PASSWORD: "${ACLED_PASSWORD:-}"
-      ACLED_ACCESS_TOKEN: "${ACLED_ACCESS_TOKEN:-}"
       UCDP_ACCESS_TOKEN: "${UCDP_ACCESS_TOKEN:-}"
       AISSTREAM_API_KEY: "${AISSTREAM_API_KEY:-}"
       AVIATIONSTACK_API: "${AVIATIONSTACK_API:-}"
