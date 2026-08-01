@@ -220,12 +220,19 @@ services:
       # PING is on the proxy's command allowlist, so an authenticated GET /ping
       # proves the proxy AND its Redis connection are live — a bare TCP check
       # would pass while Redis auth was failing.
+      #
+      # Exec form with node reading process.env directly, NOT a CMD-SHELL
+      # string referencing $$SRH_TOKEN. Coolify pre-processes this compose file
+      # and substitutes variables itself before docker compose ever sees it; a
+      # name it does not know (SRH_TOKEN exists only inside this service, not in
+      # the Coolify env tab) collapses to the empty string, the probe sends
+      # "Bearer ", the proxy 401s, and the container never turns healthy.
+      # Nothing here is interpolatable, so nothing can be substituted away.
       test:
-        - CMD-SHELL
-        - >-
-          wget -q -O /dev/null
-          --header="Authorization: Bearer $$SRH_TOKEN"
-          http://127.0.0.1:80/ping || exit 1
+        - CMD
+        - node
+        - -e
+        - "require('node:http').get({host:'127.0.0.1',port:80,path:'/ping',headers:{authorization:'Bearer '+(process.env.SRH_TOKEN||'')}},r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
       interval: 15s
       timeout: 5s
       retries: 5
@@ -261,15 +268,18 @@ services:
       --maxmemory ${REDIS_MAXMEMORY:-768mb}
       --maxmemory-policy allkeys-lru
     environment:
-      REDIS_PASSWORD: "${REDIS_PASSWORD:?REDIS_PASSWORD required — generate with: openssl rand -hex 32}"
+      # redis-cli picks the password up from REDISCLI_AUTH on its own, which
+      # keeps it off the healthcheck command line (and out of `docker inspect`)
+      # and lets the probe below stay in exec form — see the redis-rest
+      # healthcheck for why no probe here may rely on shell interpolation.
+      REDISCLI_AUTH: "${REDIS_PASSWORD:?REDIS_PASSWORD required — generate with: openssl rand -hex 32}"
     volumes:
       - redis-data:/data
     healthcheck:
-      # --no-auth-warning keeps the password out of the container's stderr on
-      # every 10s probe.
       test:
-        - CMD-SHELL
-        - redis-cli --no-auth-warning -a "$$REDIS_PASSWORD" ping | grep -q PONG
+        - CMD
+        - redis-cli
+        - ping
       interval: 10s
       timeout: 5s
       retries: 5
