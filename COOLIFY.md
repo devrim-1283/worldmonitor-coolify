@@ -85,7 +85,9 @@ curl -sf https://senin-domainin/api/sidecar-health
 Bu route nginx'in `/api/` proxy'si üzerinden Node sidecar'a gider; 200 dönüyorsa
 her iki process de ayakta demektir.
 
-Veri sağlığı için `/api/health` compact bir rapor döner (`N/55 OK` biçiminde).
+Veri sağlığı için `/api/health` JSON bir snapshot döner (`status`, `summary`,
+`problems`); `?compact=1` dashboard'un 5 dakikada bir çektiği hafif sürümdür.
+Dashboard'daki `N/55 OK` sayacı bu snapshot'tan üretilir.
 
 ## Sık karşılaşılan sorunlar
 
