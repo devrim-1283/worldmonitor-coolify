@@ -39,6 +39,13 @@ openssl rand -hex 32   # RELAY_SHARED_SECRET
 Bu üçü olmadan compose doğrulaması `:?` guard'larında patlar — stack hiç
 başlamaz. `ais-relay` ayrıca `RELAY_SHARED_SECRET` boşsa boot'ta `exit(1)` yapar.
 
+⚠️ **Coolify'ın otomatik doldurduğu değerleri kontrol et.** Coolify compose
+dosyasını tarayıp env listesini kendisi oluşturuyor ve `${VAR:?mesaj}`
+yazımındaki *mesajı varsayılan değer sanıyor*. Bu yüzden compose'daki guard'lar
+mesajsız (`${VAR:?}`) bırakıldı — ama Coolify daha önce bir değer yaratmışsa
+env sekmesinde duruyor olabilir. Deploy öncesi üç secret'ın da gerçekten senin
+ürettiğin 64 karakterlik hex olduğunu gözle doğrula.
+
 ### 3. Environment variable'ları gir
 
 `.env.coolify.example` içeriğini Coolify'ın **Environment Variables** sekmesine
@@ -94,6 +101,7 @@ Dashboard'daki `N/55 OK` sayacı bu snapshot'tan üretilir.
 | Belirti | Sebep / çözüm |
 |---|---|
 | Stack hiç başlamıyor, compose hatası | Üç zorunlu secret'tan biri boş |
+| `redis-rest` unhealthy, logunda `Connected to Redis` **var** | Secret'ın değerinde satır sonu/boşluk var. Probe `ERR_INVALID_CHAR: Invalid character in header content ["authorization"]` verir. Coolify'ın env alanına yapıştırırken sona `\n` kaçmıştır — değeri temizleyip yeniden gir. Aynı bozuk değer `UPSTASH_REDIS_REST_TOKEN` olarak uygulamaya da gittiği için sadece healthcheck'i değil tüm Redis çağrılarını bozar. Teşhis: `docker exec <container> node -e "const t=process.env.SRH_TOKEN\|\|'';console.log(t.length, JSON.stringify(t.replace(/[\x21-\x7e]/g,'')))"` — ikinci alan `\"\"` değilse sebep budur |
 | `ais-relay` restart loop'ta | `RELAY_SHARED_SECRET` app'e verilmiş ama relay'e verilmemiş — compose ikisine de veriyor, Coolify'da değişkenin scope'unu kontrol et |
 | Tüm paneller boş, `0/55 OK` | `seeder` henüz ilk geçişini bitirmedi ya da servis hiç ayağa kalkmadı |
 | `seeder` unhealthy | Bir geçiş iki interval'dan uzun sürdü. `SEED_TIMEOUT`'u düşür ya da `SEED_INTERVAL_MINUTES`'ı yükselt |

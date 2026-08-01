@@ -21,6 +21,16 @@
 #   REDIS_TOKEN           REST proxy bearer token    openssl rand -hex 32
 #   RELAY_SHARED_SECRET   app → relay auth           openssl rand -hex 32
 #
+# The three guards below are `${VAR:?}` with NO message on purpose. Coolify
+# scans this file to pre-populate its env-var list and reads the text after
+# `:?` as a default value, so the usual
+#   ${REDIS_TOKEN:?REDIS_TOKEN required — generate with: openssl rand -hex 32}
+# silently seeds REDIS_TOKEN with that sentence. It then reaches the app as
+# UPSTASH_REDIS_REST_TOKEN, and the em-dash makes every Authorization header
+# throw ERR_INVALID_CHAR — the stack fails with an unhealthy redis-rest and no
+# hint as to why. The empty form still fails the deploy when a secret is unset,
+# which is the only thing the guard was ever for.
+#
 # Everything else is optional; the dashboard degrades feature-by-feature.
 # See .env.coolify.example for the full list and COOLIFY.md for the runbook.
 # =============================================================================
@@ -53,12 +63,12 @@ services:
       # the domain on the resource in the Coolify UI instead — do not do both.
       # SERVICE_FQDN_WORLDMONITOR_8080: ""
       UPSTASH_REDIS_REST_URL: "http://redis-rest:80"
-      UPSTASH_REDIS_REST_TOKEN: "${REDIS_TOKEN:?REDIS_TOKEN required — generate with: openssl rand -hex 32}"
+      UPSTASH_REDIS_REST_TOKEN: "${REDIS_TOKEN:?}"
       LOCAL_API_PORT: "46123"
       LOCAL_API_MODE: "docker"
       LOCAL_API_CLOUD_FALLBACK: "false"
       WS_RELAY_URL: "http://ais-relay:3004"
-      RELAY_SHARED_SECRET: "${RELAY_SHARED_SECRET:?RELAY_SHARED_SECRET required — generate with: openssl rand -hex 32}"
+      RELAY_SHARED_SECRET: "${RELAY_SHARED_SECRET:?}"
       # LLM provider — any OpenAI-compatible endpoint
       LLM_API_URL: "${LLM_API_URL:-}"
       LLM_API_KEY: "${LLM_API_KEY:-}"
@@ -114,9 +124,9 @@ services:
     environment:
       # The relay exits(1) at boot without this. It authenticates every
       # non-public route the dashboard calls.
-      RELAY_SHARED_SECRET: "${RELAY_SHARED_SECRET:?RELAY_SHARED_SECRET required — generate with: openssl rand -hex 32}"
+      RELAY_SHARED_SECRET: "${RELAY_SHARED_SECRET:?}"
       UPSTASH_REDIS_REST_URL: "http://redis-rest:80"
-      UPSTASH_REDIS_REST_TOKEN: "${REDIS_TOKEN:?REDIS_TOKEN required — generate with: openssl rand -hex 32}"
+      UPSTASH_REDIS_REST_TOKEN: "${REDIS_TOKEN:?}"
       # The bundled REST proxy speaks plain HTTP on the internal network. The
       # relay refuses non-https Upstash URLs unless this opt-in is set.
       UPSTASH_ALLOW_INSECURE_HTTP: "true"
@@ -161,7 +171,7 @@ services:
       dockerfile: Dockerfile.seeder
     environment:
       UPSTASH_REDIS_REST_URL: "http://redis-rest:80"
-      UPSTASH_REDIS_REST_TOKEN: "${REDIS_TOKEN:?REDIS_TOKEN required — generate with: openssl rand -hex 32}"
+      UPSTASH_REDIS_REST_TOKEN: "${REDIS_TOKEN:?}"
       SEED_INTERVAL_MINUTES: "${SEED_INTERVAL_MINUTES:-30}"
       # Per-seeder wall-clock cap so one hung upstream can't starve the pass.
       SEED_TIMEOUT: "${SEED_TIMEOUT:-1800}"
@@ -209,8 +219,8 @@ services:
       context: docker
       dockerfile: Dockerfile.redis-rest
     environment:
-      SRH_TOKEN: "${REDIS_TOKEN:?REDIS_TOKEN required — generate with: openssl rand -hex 32}"
-      SRH_CONNECTION_STRING: "redis://:${REDIS_PASSWORD:?REDIS_PASSWORD required — generate with: openssl rand -hex 32}@redis:6379"
+      SRH_TOKEN: "${REDIS_TOKEN:?}"
+      SRH_CONNECTION_STRING: "redis://:${REDIS_PASSWORD:?}@redis:6379"
     expose:
       - "80"
     depends_on:
@@ -262,7 +272,7 @@ services:
     # next pass completes.
     command: >
       redis-server
-      --requirepass "${REDIS_PASSWORD:?REDIS_PASSWORD required — generate with: openssl rand -hex 32}"
+      --requirepass "${REDIS_PASSWORD:?}"
       --appendonly yes
       --appendfsync everysec
       --maxmemory ${REDIS_MAXMEMORY:-768mb}
@@ -272,7 +282,7 @@ services:
       # keeps it off the healthcheck command line (and out of `docker inspect`)
       # and lets the probe below stay in exec form — see the redis-rest
       # healthcheck for why no probe here may rely on shell interpolation.
-      REDISCLI_AUTH: "${REDIS_PASSWORD:?REDIS_PASSWORD required — generate with: openssl rand -hex 32}"
+      REDISCLI_AUTH: "${REDIS_PASSWORD:?}"
     volumes:
       - redis-data:/data
     healthcheck:
