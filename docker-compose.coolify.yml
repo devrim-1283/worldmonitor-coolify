@@ -227,22 +227,21 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      # PING is on the proxy's command allowlist, so an authenticated GET /ping
-      # proves the proxy AND its Redis connection are live — a bare TCP check
-      # would pass while Redis auth was failing.
-      #
-      # Exec form with node reading process.env directly, NOT a CMD-SHELL
-      # string referencing $$SRH_TOKEN. Coolify pre-processes this compose file
-      # and substitutes variables itself before docker compose ever sees it; a
-      # name it does not know (SRH_TOKEN exists only inside this service, not in
-      # the Coolify env tab) collapses to the empty string, the probe sends
-      # "Bearer ", the proxy 401s, and the container never turns healthy.
-      # Nothing here is interpolatable, so nothing can be substituted away.
+      # Deliberately UNAUTHENTICATED, and deliberately indifferent to the status
+      # code. docker/redis-rest-proxy.mjs only reaches server.listen() after
+      # `await client.connect()` resolves, so *any* HTTP response — including
+      # the 401 an anonymous request earns — already proves both the process and
+      # its Redis connection are live. Adding an Authorization header taught the
+      # probe nothing and coupled it to a secret: when that secret carried an
+      # em-dash the header itself threw ERR_INVALID_CHAR and the whole stack
+      # failed to deploy while the proxy was logging "Connected to Redis" and
+      # "listening on 0.0.0.0:80". A probe should not be able to fail for a
+      # reason the thing it probes is unaffected by.
       test:
         - CMD
         - node
         - -e
-        - "require('node:http').get({host:'127.0.0.1',port:80,path:'/ping',headers:{authorization:'Bearer '+(process.env.SRH_TOKEN||'')}},r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
+        - "require('node:http').get({host:'127.0.0.1',port:80,path:'/'},()=>process.exit(0)).on('error',()=>process.exit(1))"
       interval: 15s
       timeout: 5s
       retries: 5
